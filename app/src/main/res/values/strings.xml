@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Newsify</string>
+    <string name="enter_your_query">enter your query</string>
+    <string name="next">Next</string>
+    <string name="logout">Logout</string>
+    <string name="enter_password">Enter Password</string>
+    <string name="enter_the_number">Enter the Number</string>
+    <string name="login">Login</string>
+    <string name="new_user">New User?</string>
+    <string name="register">Register</string>
 </resources>

@@ -2,13 +2,16 @@ package com.example.newsify.ui.activities
 
 import android.app.Dialog
 import android.content.Intent
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.newsify.*
 import com.example.newsify.constant.Constant
+import com.example.newsify.constant.Constant.USER
 import com.example.newsify.data.User
 import com.example.newsify.databinding.ActivityMainBinding
 import com.example.newsify.network.NewApiInterface
@@ -23,6 +26,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+    private var user: User? = null
     val viewModel: MainViewModel by viewModels()
     lateinit var binding: ActivityMainBinding
     var mCustomProgressDialog:Dialog? = null
@@ -35,88 +39,57 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         val view = binding.root
+        user = if (Build.VERSION.SDK_INT >= 33) {
+            intent.getParcelableExtra(USER,User::class.java)
+        } else {
+            intent.getParcelableExtra(USER)
+        }
         setContentView(view)
         setUpUi()
         initListner()
-        getNewsDeatils( "global" , Constant.API_KEY)
-        viewModel.getAllUser()
-        viewModel.lastUser.observe(this){
-            if (it!=null){
-                name=it.name
-                password=it.password
-                mobile=it.mobile_number
-                gender=it.gender
-            }else{
-                Log.d("error","Error")
-            }
-        }
+        initObserver()
+        showCustomProgressDialog()
+        user?.let { viewModel.setLogInForUser(it) }
+        viewModel.getNewsDeatils("global")
 
     }
+
+    private fun initObserver() {
+        viewModel.showToast.observe(this) {
+            hideProgressDialog()
+            Toast.makeText(this,it,Toast.LENGTH_SHORT).show()
+        }
+
+        viewModel.response.observe(this){
+            hideProgressDialog()
+            if (it != null) {
+                newsListAdapter.submitList(it.articles,this@MainActivity)
+            }
+            newsListAdapter.notifyDataSetChanged()
+        }
+    }
+
     private fun initListner(){
 
         binding.btnNext.setOnClickListener {
             val query =binding.eTQuery.text.toString()
-            getNewsDeatils( query , Constant.API_KEY)
-
+            showCustomProgressDialog()
+            viewModel.getNewsDeatils(query)
         }
         binding.btnLogout.setOnClickListener {
             setLogInFalse()
         }
     }
     fun setLogInFalse(){
-        viewModel.setLogoutForUser(User(name = name, mobile_number = mobile, password = password, isLogin = false))
+        user?.let { viewModel.setLogoutForUser(it) }
         val intent = Intent(this, LoginActivity::class.java)
         startActivity(intent)
         finish()
 
     }
-   fun getNewsDeatils(query:String,apikey:String){
-        val retrofit: Retrofit = Retrofit.Builder()
-            .baseUrl(Constant.BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-        val services: NewApiInterface =retrofit.create(NewApiInterface::class.java)
-        val listCall: Call<NewsResponseDataClass> = services.getNews(query=query,apikey=apikey)
-        showCustomProgressDialog()
-        listCall.enqueue(object : Callback<NewsResponseDataClass> {
-            override fun onResponse(
-                call: Call<NewsResponseDataClass>,
-                response: Response<NewsResponseDataClass>
-            ) {
-                if (response.isSuccessful){
-                    val newsList =response.body()
-                    hideProgressDialog()
-                    if (newsList != null) {
-                        newsListAdapter.submitList(newsList.articles,this@MainActivity)
-                    }
-                  newsListAdapter.notifyDataSetChanged()
-                    Log.d("WeatherList","$newsList")
-                }else{
-                    val rc=response.code()
-                    when(rc){
-                        400->{
-                            Log.d("Error 400","Bad Connecton")
-                        }
-                        404->{
-                            Log.d("Error 404","Data not found")
-                        }
-                        else->{
-                            Log.d("Error Generic","generic error")
-                        }
-                    }
-                }
 
-            }
-
-            override fun onFailure(call: Call<NewsResponseDataClass>, t: Throwable) {
-                hideProgressDialog()
-                Log.e("error", t.message.toString())
-
-            }
-
-        })
-    }
     private fun setUpUi(){
+        binding.eTQuery.requestFocus()
         val recyclerView = binding.recyclerviewNews
                 newsListAdapter = NewsListAdapter()
         recyclerView.adapter = newsListAdapter

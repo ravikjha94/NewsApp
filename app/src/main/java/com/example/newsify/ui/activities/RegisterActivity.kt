@@ -7,6 +7,7 @@ import android.util.Log
 import android.widget.RadioButton
 import android.widget.Toast
 import androidx.activity.viewModels
+import com.example.newsify.constant.Constant.USER
 import com.example.newsify.viewmodels.MainViewModel
 import com.example.newsify.data.User
 import com.example.newsify.databinding.ActivityRegisterBinding
@@ -14,6 +15,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class RegisterActivity : AppCompatActivity() {
+    private var user: User? = null
     lateinit var binding: ActivityRegisterBinding
     val viewModel: MainViewModel by viewModels()
     private lateinit var gender: String
@@ -36,7 +38,9 @@ class RegisterActivity : AppCompatActivity() {
                 binding.tvName.text.clear()
                 binding.tvMobileNumber.text.clear()
                 binding.tvPassword.text.clear()
-                val intent = Intent(this, MainActivity::class.java)
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    putExtra(USER,user)
+                }
                 startActivity(intent)
                 finish()
             }
@@ -51,8 +55,10 @@ class RegisterActivity : AppCompatActivity() {
             if (radio != null) {
                 gender = radio.text.toString()
             }
-            val user = User(name = name, mobile_number = number, password = password, gender = gender)
-            viewModel.checkUser(user)
+            user = User(name = name, mobile_number = number, password = password, gender = gender, isLogin = true)
+            user?.let {
+                viewModel.checkUser(it)
+            }
         }
         binding.tvLogin.setOnClickListener {
             val intent = Intent(this, LoginActivity::class.java)
